@@ -1,3 +1,4 @@
+#define FASTLED_ALLOW_INTERRUPTS 0
 /*
  LIFX bulb emulator by Kayne Richens (kayno@kayno.net)
  
@@ -27,7 +28,9 @@
 #include <SPI.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
-#include <EEPROM.h>   
+#include <EEPROM.h>
+#include <FastLED.h>
+#include <ArduinoOTA.h>
 
 #include "lifx.h"
 #include "RGBMoodLifx.h"
@@ -41,12 +44,12 @@ const boolean DEBUG = 0;
 byte mac[] = { 
   0xDE, 0xAD, 0xDE, 0xAD, 0xDE, 0xAD };
 byte site_mac[] = { 
-  0x4c, 0x49, 0x46, 0x58, 0x56, 0x32 }; // spells out "LIFXV2" - version 2 of the app changes the site address to this...
+  0x4c, 0x49, 0x46, 0x58, 0x56, 0x33 }; // spells out "LIFXV2" - version 2 of the app changes the site address to this...
 
 // pins for the RGB LED:
-const int redPin = 3;
-const int greenPin = 5;
-const int bluePin = 6;
+const int redPin = D1;
+const int greenPin = D2;
+const int bluePin = D3;
 
 // label (name) for this bulb
 char bulbLabel[LifxBulbLabelLength] = "Arduino Bulb";
@@ -76,8 +79,10 @@ const char* password = "4dqywshj";
 
 void setup() {
 
-  Serial.begin(38400);
+  Serial.begin(115200);
   Serial.println(F("LIFX bulb emulator for Arduino starting up..."));
+
+  LIFXBulb.initFastLED();
 
   // start the Ethernet - using DHCP so keep trying until we get an address
   WiFi.begin(ssid, password);
@@ -90,6 +95,9 @@ void setup() {
 
   Serial.print(F("IP address for this bulb: "));
   Serial.println(WiFi.localIP());
+
+  ArduinoOTA.setHostname("LIFXV3");
+  ArduinoOTA.begin();
 
   // set up a UDP and TCP port ready for incoming
   Udp.begin(LifxPort);
@@ -191,6 +199,7 @@ void setup() {
 }
 
 void loop() {
+  ArduinoOTA.handle();
   LIFXBulb.tick();
 
   // buffers for receiving and sending data

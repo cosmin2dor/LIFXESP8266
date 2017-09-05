@@ -24,6 +24,8 @@ class RGBMoodLifx {
       FIRE_MODE
     };
 
+    void initFastLED();
+    void FastLED_Update();
     RGBMoodLifx(uint8_t = 0, uint8_t = 0, uint8_t = 0); // New instance with output pin specified.
     void setHSB(uint16_t, uint16_t, uint16_t);     // Set a fixed color from HSB color space.
     void setRGB(uint16_t, uint16_t, uint16_t);     // Set a fixed color from RGB color space.
