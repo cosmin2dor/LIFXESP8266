@@ -35,6 +35,7 @@
 #include "lifx.h"
 #include "RGBMoodLifx.h"
 #include "color.h"
+#include "RemoteDebug.h"
 
 // set to 1 to output debug messages (including packet dumps) to serial (38400 baud)
 const boolean DEBUG = 0;
@@ -72,6 +73,10 @@ WiFiUDP Udp;
 WiFiServer TcpServer(LifxPort);
 WiFiClient client;
 
+//Telnet server
+RemoteDebug DebugR;
+#define HOST_NAME "lifx_debug"
+
 RGBMoodLifx LIFXBulb(redPin, greenPin, bluePin);
 
 const char* ssid = "2dor@buzau";
@@ -82,7 +87,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println(F("LIFX bulb emulator for Arduino starting up..."));
 
-  LIFXBulb.initFastLED();
+  LIFXBulb.initFastLED(&DebugR);
 
   // start the Ethernet - using DHCP so keep trying until we get an address
   WiFi.begin(ssid, password);
@@ -96,8 +101,13 @@ void setup() {
   Serial.print(F("IP address for this bulb: "));
   Serial.println(WiFi.localIP());
 
+  //OTA SETUP
   ArduinoOTA.setHostname("LIFXV3");
   ArduinoOTA.begin();
+
+  //Telnet Setup
+  DebugR.begin(HOST_NAME); // Initiaze the telnet server
+  DebugR.setResetCmdEnabled(true);
 
   // set up a UDP and TCP port ready for incoming
   Udp.begin(LifxPort);
@@ -200,7 +210,9 @@ void setup() {
 
 void loop() {
   ArduinoOTA.handle();
+  DebugR.handle();
   LIFXBulb.tick();
+  LIFXBulb.FastLED_Update();
 
   // buffers for receiving and sending data
   byte PacketBuffer[128]; //buffer to hold incoming packet,
@@ -357,10 +369,24 @@ void handleRequest(LifxPacket &request) {
       bri = word(request.data[6], request.data[5]);
       kel = word(request.data[8], request.data[7]);
 
+      Serial.println("THis is SET_LIGHT_STATE");
+
       setLight();
     } 
     break;
 
+  case SET_BRIGHTNESS_LEVEL:
+  {
+    Serial.println("This is SET_BRIGHTNESS_LEVEL");
+    Serial.printf("HEX: %x:%x ", request.data[6], request.data[7]);
+    Serial.printf("DEC: %d:%d ", request.data[6], request.data[7]);
+    Serial.printf("WORD: %d", word(request.data[7], request.data[6]));
+
+    bri = word(request.data[7], request.data[6]);
+
+    setLight();
+  }
+  break;
 
   case GET_LIGHT_STATE: 
     {
@@ -432,6 +458,10 @@ void handleRequest(LifxPacket &request) {
 
 
   case SET_POWER_STATE:
+  {
+    Serial.println("This is SET_POWER_STATE");
+    break;
+  }
   case GET_POWER_STATE: 
     {
       // set if we are setting
@@ -640,7 +670,8 @@ void sendPacket(LifxPacket &pkt) {
 unsigned int sendUDPPacket(LifxPacket &pkt) { 
   // broadcast packet on local subnet
   IPAddress remote_addr(Udp.remoteIP());
-  IPAddress broadcast_addr(remote_addr[0], remote_addr[1], remote_addr[2], 255);
+  IPAddress netmask(WiFi.subnetMask());
+  IPAddress broadcast_addr((unsigned char)(remote_addr[0] | ~netmask[0]), (unsigned char)(remote_addr[1] | ~netmask[1]), (unsigned char)(remote_addr[2] | ~netmask[2]), (unsigned char)(remote_addr[3] | ~netmask[3]));
 
   if(DEBUG) {
     Serial.print(F("+UDP "));
@@ -717,8 +748,8 @@ unsigned int sendTCPPacket(LifxPacket &pkt) {
     printLifxPacket(pkt);
     Serial.println();
   }
-
-  byte TCPBuffer[128]; //buffer to hold outgoing packet,
+  uint8_t len = 128;
+  byte TCPBuffer[len]; //buffer to hold outgoing packet,
   int byteCount = 0;
 
   // size
@@ -776,7 +807,7 @@ unsigned int sendTCPPacket(LifxPacket &pkt) {
     TCPBuffer[byteCount++] = lowByte(pkt.data[i]);
   }
 
-  //client.write(TCPBuffer, byteCount);
+  client.write(TCPBuffer, byteCount);
 
   return LifxPacketSize + pkt.data_size;
 }

@@ -1,6 +1,9 @@
+#define FASTLED_ALLOW_INTERRUPTS 0
+
 #include "RGBMoodLifx.h"
 #include <FastLED.h>
 #include "FastLED_Constants.h"
+#include "RemoteDebug.h"
 
 // Dim curve
 // Used to make 'dimming' look more natural. 
@@ -24,9 +27,12 @@ uint8_t dc[256] = {
 };
 
 CRGB leds[NUM_LEDS];
+RemoteDebug Debug;
 
-void RGBMoodLifx::initFastLED()
+void RGBMoodLifx::initFastLED(RemoteDebug* debug)
 {
+  Debug = *debug;
+  
   Serial.println("Setting up the LEDs");
 
   delay(3000);
@@ -40,9 +46,11 @@ void RGBMoodLifx::initFastLED()
 
 void RGBMoodLifx::FastLED_Update()
 {
+  uint8_t hue = map(current_HSB_color_[0], 0, 360, 0, 255);
+  
   for(int i = 0; i < NUM_LEDS; i++)
   {
-    leds[i] = CHSV(current_HSB_color_[0], current_HSB_color_[1], current_HSB_color_[2]);
+    leds[i] = CHSV(hue+i-15, current_HSB_color_[1], current_HSB_color_[2]);
   }
 
   FastLED.show();
@@ -213,7 +221,7 @@ void RGBMoodLifx::tick() {
     //Serial.println("G: " + current_RGB_color_[1]);
     //Serial.println("B: " + current_RGB_color_[2]);
 
-    RGBMoodLifx::FastLED_Update();
+    //RGBMoodLifx::FastLED_Update();
   }
 }
 
