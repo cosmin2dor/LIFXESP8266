@@ -159,3 +159,4 @@ rgb kelvinToRGB(long kelvin) {
 
   return kelvin_rgb;
 }
+

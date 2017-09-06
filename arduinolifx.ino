@@ -31,6 +31,9 @@
 #include <EEPROM.h>
 #include <FastLED.h>
 #include <ArduinoOTA.h>
+#include <WiFiManager.h>
+#include <DNSServer.h>
+#include <ESP8266WebServer.h>
 
 #include "lifx.h"
 #include "RGBMoodLifx.h"
@@ -38,14 +41,14 @@
 #include "RemoteDebug.h"
 
 // set to 1 to output debug messages (including packet dumps) to serial (38400 baud)
-const boolean DEBUG = 0;
+const boolean isDEBUG = 0;
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
 byte mac[] = { 
   0xDE, 0xAD, 0xDE, 0xAD, 0xDE, 0xAD };
 byte site_mac[] = { 
-  0x4c, 0x49, 0x46, 0x58, 0x56, 0x33 }; // spells out "LIFXV2" - version 2 of the app changes the site address to this...
+  0x4c, 0x49, 0x46, 0x58, 0x56, 0x32 }; // spells out "LIFXV2" - version 2 of the app changes the site address to this...
 
 // pins for the RGB LED:
 const int redPin = D1;
@@ -53,7 +56,7 @@ const int greenPin = D2;
 const int bluePin = D3;
 
 // label (name) for this bulb
-char bulbLabel[LifxBulbLabelLength] = "Arduino Bulb";
+char bulbLabel[LifxBulbLabelLength] = "Victoria's RGB Light";
 
 // tags for this bulb
 char bulbTags[LifxBulbTagsLength] = {
@@ -74,23 +77,27 @@ WiFiServer TcpServer(LifxPort);
 WiFiClient client;
 
 //Telnet server
-RemoteDebug DebugR;
+RemoteDebug DebugPrint;
 #define HOST_NAME "lifx_debug"
 
 RGBMoodLifx LIFXBulb(redPin, greenPin, bluePin);
 
+const char* AutoConnectAP_NAME = "LIFX_WiFiSetup";
 const char* ssid = "2dor@buzau";
-const char* password = "4dqywshj";
+const char* passwd = "4dqywshj";
 
 void setup() {
 
   Serial.begin(115200);
   Serial.println(F("LIFX bulb emulator for Arduino starting up..."));
 
-  LIFXBulb.initFastLED(&DebugR);
+  LIFXBulb.initFastLED();
 
-  // start the Ethernet - using DHCP so keep trying until we get an address
-  WiFi.begin(ssid, password);
+  //Wifi Autoconect
+  //WiFiManager wifiManager;
+  //wifiManager.resetSettings();
+  //wifiManager.autoConnect(AutoConnectAP_NAME);
+  WiFi.begin(ssid, passwd);
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
@@ -99,25 +106,21 @@ void setup() {
   Serial.println(" connected");
 
   Serial.print(F("IP address for this bulb: "));
-  Serial.println(WiFi.localIP());
+Serial.println(WiFi.localIP());
 
   //OTA SETUP
-  ArduinoOTA.setHostname("LIFXV3");
+  ArduinoOTA.setHostname("LIFX_ESP");
   ArduinoOTA.begin();
 
   //Telnet Setup
-  DebugR.begin(HOST_NAME); // Initiaze the telnet server
-  DebugR.setResetCmdEnabled(true);
+  DebugPrint.begin(HOST_NAME); // Initiaze the telnet server
+  DebugPrint.setResetCmdEnabled(true);
 
   // set up a UDP and TCP port ready for incoming
   Udp.begin(LifxPort);
   TcpServer.begin();
 
   // set up the LED pins
-  pinMode(redPin, OUTPUT); 
-  pinMode(greenPin, OUTPUT); 
-  pinMode(bluePin, OUTPUT); 
-
   LIFXBulb.setFadingSteps(20);
   LIFXBulb.setFadingSpeed(20);
   
@@ -125,7 +128,7 @@ void setup() {
   if(EEPROM.read(EEPROM_CONFIG_START) == EEPROM_CONFIG[0]
     && EEPROM.read(EEPROM_CONFIG_START+1) == EEPROM_CONFIG[1]
     && EEPROM.read(EEPROM_CONFIG_START+2) == EEPROM_CONFIG[2]) {
-      if(DEBUG) {
+      if(isDEBUG) {
         Serial.println(F("Config exists in EEPROM, reading..."));
         Serial.print(F("Bulb label: "));
       }
@@ -133,12 +136,12 @@ void setup() {
       for(int i = 0; i < LifxBulbLabelLength; i++) {
         bulbLabel[i] = EEPROM.read(EEPROM_BULB_LABEL_START+i);
         
-        if(DEBUG) {
+        if(isDEBUG) {
           Serial.print(bulbLabel[i]);
         }
       }
       
-      if(DEBUG) {
+      if(isDEBUG) {
         Serial.println();
         Serial.print(F("Bulb tags: "));
       }
@@ -146,12 +149,12 @@ void setup() {
       for(int i = 0; i < LifxBulbTagsLength; i++) {
         bulbTags[i] = EEPROM.read(EEPROM_BULB_TAGS_START+i);
         
-        if(DEBUG) {
+        if(isDEBUG) {
           Serial.print(bulbTags[i]);
         }
       }
       
-      if(DEBUG) {
+      if(isDEBUG) {
         Serial.println();
         Serial.print(F("Bulb tag labels: "));
       }
@@ -159,18 +162,18 @@ void setup() {
       for(int i = 0; i < LifxBulbTagLabelsLength; i++) {
         bulbTagLabels[i] = EEPROM.read(EEPROM_BULB_TAG_LABELS_START+i);
         
-        if(DEBUG) {
+        if(isDEBUG) {
           Serial.print(bulbTagLabels[i]);
         }
       }
       
-      if(DEBUG) {
+      if(isDEBUG) {
         Serial.println();
         Serial.println(F("Done reading EEPROM config."));
       }
   } else {
     // first time sketch has been run, set defaults into EEPROM
-    if(DEBUG) {
+    if(isDEBUG) {
       Serial.println(F("Config does not exist in EEPROM, writing..."));
     }
     
@@ -190,12 +193,12 @@ void setup() {
       EEPROM.write(EEPROM_BULB_TAG_LABELS_START+i, bulbTagLabels[i]);
     }
       
-    if(DEBUG) {
+    if(isDEBUG) {
       Serial.println(F("Done writing EEPROM config."));
     }
   }
   
-  if(DEBUG) {
+  if(isDEBUG) {
     Serial.println(F("EEPROM dump:"));
     for(int i = 0; i < 256; i++) {
       Serial.print(EEPROM.read(i));
@@ -210,7 +213,7 @@ void setup() {
 
 void loop() {
   ArduinoOTA.handle();
-  DebugR.handle();
+  DebugPrint.handle();
   LIFXBulb.tick();
   LIFXBulb.FastLED_Update();
 
@@ -227,7 +230,7 @@ void loop() {
       packetSize++;
     }
 
-    if(DEBUG) {
+    if(isDEBUG) {
       Serial.print(F("-TCP "));
       for(int i = 0; i < LifxPacketSize; i++) {
         Serial.print(PacketBuffer[i], HEX);
@@ -254,7 +257,7 @@ void loop() {
   if(packetSize) {
     Udp.read(PacketBuffer, 128);
 
-    if(DEBUG) {
+    if(isDEBUG) {
       Serial.print(F("-UDP "));
       for(int i = 0; i < LifxPacketSize; i++) {
         Serial.print(PacketBuffer[i], HEX);
@@ -315,7 +318,7 @@ void processRequest(byte *packetBuffer, int packetSize, LifxPacket &request) {
 }
 
 void handleRequest(LifxPacket &request) {
-  if(DEBUG) {
+  if(isDEBUG) {
     Serial.print(F("  Received packet type "));
     Serial.println(request.packet_type, HEX);
   }
@@ -369,19 +372,22 @@ void handleRequest(LifxPacket &request) {
       bri = word(request.data[6], request.data[5]);
       kel = word(request.data[8], request.data[7]);
 
-      Serial.println("THis is SET_LIGHT_STATE");
-
       setLight();
     } 
     break;
 
   case SET_BRIGHTNESS_LEVEL:
   {
-    Serial.println("This is SET_BRIGHTNESS_LEVEL");
-    Serial.printf("HEX: %x:%x ", request.data[6], request.data[7]);
-    Serial.printf("DEC: %d:%d ", request.data[6], request.data[7]);
-    Serial.printf("WORD: %d", word(request.data[7], request.data[6]));
+    bri = word(request.data[7], request.data[6]);
 
+    setLight();
+  }
+  break;
+
+  case MUSIC_VISUALIZER:
+  {
+    //Serial.printf("MUSIC BRIGHNESS: %d", word(request.data[7], request.data[6]));
+    hue = word(request.data[3], request.data[2]);
     bri = word(request.data[7], request.data[6]);
 
     setLight();
@@ -647,7 +653,8 @@ void handleRequest(LifxPacket &request) {
 
   default: 
     {
-      if(DEBUG) {
+      //Serial.printf("This is default: %x\n", request.packet_type);
+      if(isDEBUG) {
         Serial.println(F("  Unknown packet type, ignoring"));
       }
     } 
@@ -669,7 +676,7 @@ unsigned int sendUDPPacket(LifxPacket &pkt) {
   IPAddress netmask(WiFi.subnetMask());
   IPAddress broadcast_addr((unsigned char)(remote_addr[0] | ~netmask[0]), (unsigned char)(remote_addr[1] | ~netmask[1]), (unsigned char)(remote_addr[2] | ~netmask[2]), (unsigned char)(remote_addr[3] | ~netmask[3]));
 
-  if(DEBUG) {
+  if(isDEBUG) {
     Serial.print(F("+UDP "));
     printLifxPacket(pkt);
     Serial.println();
@@ -739,7 +746,7 @@ unsigned int sendUDPPacket(LifxPacket &pkt) {
 
 unsigned int sendTCPPacket(LifxPacket &pkt) { 
 
-  if(DEBUG) {
+  if(isDEBUG) {
     Serial.print(F("+TCP "));
     printLifxPacket(pkt);
     Serial.println();
@@ -808,7 +815,7 @@ unsigned int sendTCPPacket(LifxPacket &pkt) {
   return LifxPacketSize + pkt.data_size;
 }
 
-// print out a LifxPacket data structure as a series of hex bytes - used for DEBUG
+// print out a LifxPacket data structure as a series of hex bytes - used for isDEBUG
 void printLifxPacket(LifxPacket &pkt) {
   // size
   Serial.print(lowByte(LifxPacketSize + pkt.data_size), HEX);
@@ -894,7 +901,7 @@ void printLifxPacket(LifxPacket &pkt) {
 }
 
 void setLight() {
-  if(DEBUG) {
+  if(isDEBUG) {
     Serial.print(F("Set light - "));
     Serial.print(F("hue: "));
     Serial.print(hue);
@@ -909,11 +916,11 @@ void setLight() {
     Serial.println(power_status ? " (on)" : "(off)");
   }
 
-  if(power_status) {
-    int this_hue = map(hue, 0, 65535, 0, 359);
-    int this_sat = map(sat, 0, 65535, 0, 255);
-    int this_bri = map(bri, 0, 65535, 0, 255);
+  int this_hue = map(hue, 0, 65535, 0, 359);
+  uint8_t this_sat = map(sat, 0, 65535, 0, 255);
+  uint8_t this_bri = map(bri, 0, 65535, 0, 255);
 
+  if(power_status) {
     // if we are setting a "white" colour (kelvin temp)
     if(kel > 0 && this_sat < 1) {
       // convert kelvin to RGB
@@ -932,6 +939,7 @@ void setLight() {
     LIFXBulb.fadeHSB(this_hue, this_sat, this_bri);
   } 
   else {
-    LIFXBulb.fadeHSB(0, 0, 0);
+    LIFXBulb.fadeHSB(this_hue, this_sat, 0);
   }
 }
+

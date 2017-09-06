@@ -3,7 +3,6 @@
 #include "RGBMoodLifx.h"
 #include <FastLED.h>
 #include "FastLED_Constants.h"
-#include "RemoteDebug.h"
 
 // Dim curve
 // Used to make 'dimming' look more natural. 
@@ -27,12 +26,9 @@ uint8_t dc[256] = {
 };
 
 CRGB leds[NUM_LEDS];
-RemoteDebug Debug;
 
-void RGBMoodLifx::initFastLED(RemoteDebug* debug)
-{
-  Debug = *debug;
-  
+void RGBMoodLifx::initFastLED()
+{ 
   Serial.println("Setting up the LEDs");
 
   delay(3000);
@@ -45,12 +41,11 @@ void RGBMoodLifx::initFastLED(RemoteDebug* debug)
 }
 
 void RGBMoodLifx::FastLED_Update()
-{
-  uint8_t hue = map(current_HSB_color_[0], 0, 360, 0, 255);
-  
+{ 
+  uint8_t hue = map(current_HSB_color_[0], 0, 359, 0, 255);
   for(int i = 0; i < NUM_LEDS; i++)
   {
-    leds[i] = CHSV(hue+i-15, current_HSB_color_[1], current_HSB_color_[2]);
+    leds[i] = CHSV(hue + i - (uint8_t)NUM_LEDS/2, current_HSB_color_[1], current_HSB_color_[2]);
   }
 
   FastLED.show();
@@ -212,17 +207,6 @@ void RGBMoodLifx::tick() {
       }
     }
   }
-  //if (pins_[0] > 0) {
-  if (pins_[0] >= 0) { // this is the modification for LIFX - allows 0 to be written for each pin to power off the LED
-    //analogWrite(pins_[0], current_RGB_color_[0]);
-    //analogWrite(pins_[1], current_RGB_color_[1]);
-    //analogWrite(pins_[2], current_RGB_color_[2]);
-    //Serial.println(current_RGB_color_[0]);
-    //Serial.println("G: " + current_RGB_color_[1]);
-    //Serial.println("B: " + current_RGB_color_[2]);
-
-    //RGBMoodLifx::FastLED_Update();
-  }
 }
 
 /*
@@ -311,3 +295,4 @@ void RGBMoodLifx::fade()
     current_RGB_color_[2] = (uint16_t)(initial_color_[2] - (fading_step_*((initial_color_[2]-(float)target_color_[2])/fading_max_steps_)));
   }
 }
+

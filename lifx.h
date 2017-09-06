@@ -28,7 +28,7 @@ const unsigned int LifxBulbTagLabelsLength = 32;
 // firmware versions, etc
 const unsigned int LifxBulbVendor = 1;
 const unsigned int LifxBulbProduct = 1;
-const unsigned int LifxBulbVersion = 3;
+const unsigned int LifxBulbVersion = 1;
 const unsigned int LifxFirmwareVersionMajor = 1;
 const unsigned int LifxFirmwareVersionMinor = 5;
 
@@ -69,6 +69,8 @@ const byte GET_MESH_FIRMWARE_STATE = 0x0e;
 const byte MESH_FIRMWARE_STATE = 0x0f;
 const byte SET_BRIGHTNESS_LEVEL = 0x77;
 
+const byte MUSIC_VISUALIZER = 0x67;
+
 
 #define EEPROM_BULB_LABEL_START 0 // 32 bytes long
 #define EEPROM_BULB_TAGS_START 32 // 8 bytes long
@@ -80,3 +82,4 @@ const byte SET_BRIGHTNESS_LEVEL = 0x77;
 
 // helpers
 #define SPACE " "
+
