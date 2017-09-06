@@ -458,10 +458,6 @@ void handleRequest(LifxPacket &request) {
 
 
   case SET_POWER_STATE:
-  {
-    Serial.println("This is SET_POWER_STATE");
-    break;
-  }
   case GET_POWER_STATE: 
     {
       // set if we are setting
