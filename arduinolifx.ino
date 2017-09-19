@@ -24,8 +24,6 @@
  slightly to support powering down the LED
  */
 
-
-#include <SPI.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <EEPROM.h>
@@ -66,7 +64,7 @@ char bulbTagLabels[LifxBulbTagLabelsLength] = "";
 // initial bulb values - warm white!
 long power_status = 65535;
 long hue = 0;
-long sat = 0;
+long sat = 65535;
 long bri = 65535;
 long kel = 2000;
 long dim = 0;
@@ -87,7 +85,7 @@ const char* ssid = "2dor@buzau";
 const char* passwd = "4dqywshj";
 
 void setup() {
-
+  
   Serial.begin(115200);
   Serial.println(F("LIFX bulb emulator for Arduino starting up..."));
 
