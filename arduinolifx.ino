@@ -81,8 +81,8 @@ RemoteDebug DebugPrint;
 RGBMoodLifx LIFXBulb(redPin, greenPin, bluePin);
 
 const char* AutoConnectAP_NAME = "LIFX_WiFiSetup";
-const char* ssid = "2dor@buzau";
-const char* passwd = "4dqywshj";
+const char* ssid = "*********";
+const char* passwd = "*********";
 
 void setup() {
   
